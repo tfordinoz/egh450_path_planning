@@ -32,14 +32,14 @@ class PathPlanner():
 		msg_out = Path()
 		msg_out.header = msgin.header
 	
-		for i in range(len(msgin.waypoints)-1):
+		for i in range(len(msgin.waypoints)):
 			#Request a path from breadcrumb
 			req = RequestPathRequest()
 		
 			req.start = msgin.waypoints[i].position
 			req.end = msgin.waypoints[i+1].position
 
-			res = self.srvc_bc(req)
+			res = self.srvc_bc(req);
 		
 			if len(res.path.poses) > 0:
 	
@@ -55,7 +55,7 @@ class PathPlanner():
 			
 
 				# Insert the path recieved from breadcrumb
-				for sp in res.path.poses:
+				for sp in res.path.poses[0::5]:
 					p = PoseStamped()
 					p.header = res.path.header
 					p.pose.position = sp.position
@@ -74,7 +74,6 @@ class PathPlanner():
 				pe.pose.orientation.y = 0.0
 				pe.pose.orientation.z = 0.0
 				msg_out.poses.append(pe)
-				
 				
 			else:
 				rospy.logerr("[NAV] No path received, abandoning planning")

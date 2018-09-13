@@ -7,16 +7,11 @@
 	<node pkg="contrail" type="load_waypoints" name="load_waypoints" clear_params="true"
 	ns="$(arg uav_name)" output="screen">
 		<param name="frame_id" value="map" />
-		<rosparam command="load" file="$(find uavusr_emulator)/waypoints/$(arg wp_name).yaml"/>
+		<rosparam command="load" file="$(find egh450_path_planning)/src/$(arg wp_name).yaml"/>
 	</node>
 
 	<!-- Navigator Node -->
 	<node pkg="egh450_path_planning" type="planner" name="planner" clear_params="true" output="screen">
-		<param name="goal_start_x" value="2.0"/>
-		<param name="goal_start_y" value="-2.0"/>
-		<param name="goal_end_x" value="-2.0"/>
-		<param name="goal_end_y" value="2.0"/>
-		<param name="goal_height" value="1.3"/>
 
 		<!-- These topics need to be remapped correctly! -->
 		<!-- Input to contrail for path tracking -->
@@ -24,6 +19,7 @@
 		<remap from="~waypoints" to="/emulated_uav/waypoints"/>
 		<!-- Service to request a safe path from breadcrumb -->
 		<remap from="~request_path" to="/breadcrumb/request_path"/>
+
 	</node>
 
 	<!-- Breadcrumb Node -->
@@ -31,28 +27,13 @@
 		<param name="search_heuristic" value="1" type="int"/>
 		<param name="allow_diagonals" value="true" type="bool"/>
 		<param name="obstacle_threshold" value="50" type="int"/>
-
 		<!-- Occupancy grid input -->
 		<remap from="grid" to="/grid/real"/>
+
+
 	</node>
 
-	<!-- Run the actual path guidance node -->
-	<node pkg="contrail" type="contrail_guidance_node" name="guidance" clear_params="true"
-	ns="$(arg uav_name)" output="screen">
-		<param name="update_rate" value="50.0" />
-		<param name="do_feedback" value="true" />
 
-		<!-- Parameters relating to the waypoint tracking -->
-		<param name="contrail/fallback_to_pose" value="true" />
-		<param name="contrail/waypoint_hold_duration" value="2.0" />
-		<param name="contrail/waypoint_radius" value="0.1" />
-		<param name="contrail/waypoint_yaw_accuracy" value="0.1" />
-
-		<!-- Remap topic names to match what the uavusr_emulator expects -->
-		<remap from="~command/triplet" to="reference/triplet"/>
-		<remap from="~reference/contrail/path" to="/path"/>
-		<remap from="~state/odom" to="odom" />
-	</node>
 
 
 </launch>
