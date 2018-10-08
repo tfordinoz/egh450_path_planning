@@ -19,6 +19,15 @@
 		<remap from="~waypoints" to="/emulated_uav/waypoints"/>
 		<!-- Service to request a safe path from breadcrumb -->
 		<remap from="~request_path" to="/breadcrumb/request_path"/>
+		<!-- These topics need to be remapped correctly! -->
+		<!-- Input to trigger diversion from imagery -->
+		<remap from="~imagery_trigger" to="/emulated_uav/target_found" />
+		<!-- Feedback from contrail to alert us when waypoints have been reached -->
+		<remap from="~discrete_progress" to="/emulated_uav/guidance/feedback/contrail/discrete_progress" />
+		<!-- Pose reference input to contrail to perform diversion -->
+		<remap from="~pose" to="/emulated_uav/guidance/reference/contrail/pose" />
+		<!-- Service to switch contrail between tracking modes -->
+		<remap from="~set_tracking" to="/emulated_uav/guidance/contrail/set_tracking"/>
 
 	</node>
 

@@ -3,6 +3,7 @@
 import sys
 import rospy
 from egh450_path_planning.path_planner import PathPlanner
+from egh450_path_planning.path_planner import NavigationInterface
 
 if __name__ == '__main__':
 	# Initialize
@@ -12,6 +13,7 @@ if __name__ == '__main__':
 
 	try:
 		nav = PathPlanner()
+		nav = NavigationInterface()
 
 		rospy.loginfo("[NAV] Path planner node running")
 
