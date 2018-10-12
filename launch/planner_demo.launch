@@ -22,6 +22,7 @@
 		<!-- These topics need to be remapped correctly! -->
 		<!-- Input to trigger diversion from imagery -->
 		<remap from="~imagery_trigger/red" to="/target_found" />
+		<remap from="~imagery_trigger/blue" to="/target_found" />
 		<!-- Feedback from contrail to alert us when waypoints have been reached -->
 		<remap from="~discrete_progress" to="/mavel/feedback/contrail/discrete_progress" />
 		<!-- Pose reference input to contrail to perform diversion -->
