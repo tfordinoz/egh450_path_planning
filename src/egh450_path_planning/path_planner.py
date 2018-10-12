@@ -15,6 +15,7 @@ from breadcrumb.srv import RequestPathRequest
 from contrail_msgs.msg import WaypointList
 from contrail_msgs.msg import DiscreteProgress
 from contrail_msgs.srv import SetTracking, SetTrackingRequest
+from mavros_msgs.msg import ActuatorControl
 
 
 class PathPlanner():
@@ -33,20 +34,6 @@ class PathPlanner():
 	def shutdown(self):
 		# Unregister anything that needs it here
 		pass
-	def e_to_q(self,roll,pitch,yaw):
-		cy = cos(yaw * 0.5);
-		sy = sin(yaw * 0.5);
-		cr = cos(roll * 0.5);
-		sr = sin(roll * 0.5);
-		cp = cos(pitch * 0.5);
-		sp = sin(pitch * 0.5);
-
-		w = cy * cr * cp + sy * sr * sp;
-		x = cy * sr * cp - sy * cr * sp;
-		y = cy * cr * sp + sy * sr * cp;
-		z = sy * cr * cp - cy * sr * sp;
-
-		return (w,x,y,z)
 
 	def request_path(self,msgin):
 		rospy.loginfo("[NAV] Requesting path from Breadcrumb")
@@ -96,11 +83,6 @@ class PathPlanner():
 						p.pose.orientation.x = 0.0
 						p.pose.orientation.y = 0.0
 						p.pose.orientation.z = 0.0
-						(w,x,y,z) = self.e_to_q(0.0,0.0,msgin.waypoints[i].yaw)
-						p.pose.orientation.w = w
-						p.pose.orientation.x = x
-						p.pose.orientation.y = y
-						p.pose.orientation.z = z
 						msg_out.poses.append(p)
 
 					#Insert the end pose
@@ -120,11 +102,15 @@ class PathPlanner():
 class NavigationInterface():
 	def __init__(self):
 		# Needs to be connected to contrail & timestamp
-		self.sub_trig = rospy.Subscriber('~imagery_trigger', Time, self.callback_trigger)
+
+		# Set up subscribers
+		self.sub_trig_red = rospy.Subscriber('~imagery_trigger/red', Time, self.callback_trigger_red)
+		self.sub_trig_blue = rospy.Subscriber('~imagery_trigger/blue', Time, self.callback_trigger_blue)
 		self.sub_prog = rospy.Subscriber('~discrete_progress', DiscreteProgress, self.callback_progress)
 
 		# Prepare diversion logic
 		self.on_diversion = False
+		self.payload_red = False
 		self.pub_divert = rospy.Publisher('~pose', PoseStamped, queue_size=10)
 
 
@@ -142,19 +128,22 @@ class NavigationInterface():
 		self.srv_track = rospy.ServiceProxy('~set_tracking', SetTracking)
 
 
-
-
 	def shutdown(self):
 		# Unregister anything that needs it here
-		self.sub_trig.unregister()
+		self.sub_trig_red.unregister()
+		self.sub_trig_blue.unregister()
 		self.sub_prog.unregister()
 
 	# Callback to handle an alert from image processing that the target is found
-	def callback_trigger(self, msg_in):
-		
+	def callback_trigger_red(self, msg_in):
+		self.payload_red = True
+		self.do_divert("square", msg_in.data)
 
+	def callback_trigger_blue(self, msg_in):
+		self.payload_blue = True
+		self.do_divert("triangle", msg_in.data)
 
-
+	def do_divert(self, target_name, stamp):
 		rospy.loginfo("[NAV] Got imagery trigger, setting diversion...")
 		# We recieved a "found" timestamp
 		# attempt to find the transformation
@@ -162,7 +151,7 @@ class NavigationInterface():
 
 			# Lookup transform from "map" to "target" at time "msg_in.data",
 			# and allow for 0.5 seconds to collected any additionally needed data
-			t = self.tfBuffer.lookup_transform("map", "target", msg_in.data, rospy.Duration(0.5))
+			t = self.tfBuffer.lookup_transform("map", target_name, stamp, rospy.Duration(0.5))
 
 			# Dump information to screen
 			rospy.loginfo("Found target at the following location in the world:")
@@ -195,11 +184,23 @@ class NavigationInterface():
 		if self.on_diversion and (msg_in.progress == 1.0):
 			rospy.loginfo("[NAV] Reached drop point, requesting path continue...")
 
-			# Time and payload stuff here
+			# Hover above target for 5 seconds for payload deployment
 			rospy.sleep(rospy.Duration(5))
+			# If bool is red, blue publish that , servo 1 servo 2,
+			# Send trigger to payload
+			if self.payload_red:
+				self.deploy_red()
 
+
+			if self.payload_blue:
+				self.deploy_blue()
+			
+			# Allow time for payload to deploy
+			rospy.sleep(rospy.Duration(3))
 			# Disable further tracking changes (unless re-triggered)
 			self.on_diversion = False
+			self.payload_red = False
+			self.payload_blue = False
 
 			# Send a request to contrail to resume path tracking
 			req = SetTrackingRequest()
@@ -210,3 +211,51 @@ class NavigationInterface():
 				rospy.loginfo("[NAV] Diversion complete!")
 			else:
 				rospy.logerr("[NAV] Could not return to path tracking!")
+
+	def deploy_red(self):
+		
+		pub = rospy.Publisher('/mavros/actuator_control', ActuatorControl, queue_size=10)
+
+		rate = rospy.Rate(1)
+
+		msg_out = ActuatorControl()
+		msg_out.group_mix = 1 # Use group 1 (auxilary controls)
+		msg_out.controls = [0.0, 0.0, 0.0, 0.0, -1.0, -1.0, -1.0, -1.0]
+		is_low = True
+
+		if not rospy.is_shutdown():
+			is_low = not is_low
+
+			if is_low:
+				msg_out.controls = [0.0, 0.0, 0.0, 0.0, -1.0, -1.0, -1.0, -1.0]
+				rospy.loginfo("Set servos low")
+			else:
+				msg_out.controls = [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+				rospy.loginfo("Set servos high")
+
+			msg_out.header.stamp = rospy.Time.now()
+			pub.publish(msg_out)
+
+	def deploy_blue(self):
+		
+		pub = rospy.Publisher('/mavros/actuator_control', ActuatorControl, queue_size=10)
+
+		rate = rospy.Rate(1)
+
+		msg_out = ActuatorControl()
+		msg_out.group_mix = 1 # Use group 1 (auxilary controls)
+		msg_out.controls = [0.0, 0.0, 0.0, 0.0, -1.0, -1.0, -1.0, -1.0]
+		is_low = True
+
+		if not rospy.is_shutdown():
+			is_low = not is_low
+
+			if is_low:
+				msg_out.controls = [0.0, 0.0, 0.0, 0.0, -1.0, -1.0, -1.0, -1.0]
+				rospy.loginfo("Set servos low")
+			else:
+				msg_out.controls = [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0]
+				rospy.loginfo("Set servos high")
+
+			msg_out.header.stamp = rospy.Time.now()
+			pub.publish(msg_out)

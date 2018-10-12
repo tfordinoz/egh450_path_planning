@@ -16,18 +16,18 @@
 		<!-- These topics need to be remapped correctly! -->
 		<!-- Input to contrail for path tracking -->
 		<remap from="~path" to="/path"/>
-		<remap from="~waypoints" to="/emulated_uav/waypoints"/>
+		<remap from="~waypoints" to="/waypoints"/>
 		<!-- Service to request a safe path from breadcrumb -->
 		<remap from="~request_path" to="/breadcrumb/request_path"/>
 		<!-- These topics need to be remapped correctly! -->
 		<!-- Input to trigger diversion from imagery -->
-		<remap from="~imagery_trigger" to="/emulated_uav/target_found" />
+		<remap from="~imagery_trigger/red" to="/target_found" />
 		<!-- Feedback from contrail to alert us when waypoints have been reached -->
-		<remap from="~discrete_progress" to="/emulated_uav/guidance/feedback/contrail/discrete_progress" />
+		<remap from="~discrete_progress" to="/mavel/feedback/contrail/discrete_progress" />
 		<!-- Pose reference input to contrail to perform diversion -->
-		<remap from="~pose" to="/emulated_uav/guidance/reference/contrail/pose" />
+		<remap from="~pose" to="/mavel/reference/contrail/pose" />
 		<!-- Service to switch contrail between tracking modes -->
-		<remap from="~set_tracking" to="/emulated_uav/guidance/contrail/set_tracking"/>
+		<remap from="~set_tracking" to="/mavel/contrail/set_tracking"/>
 
 	</node>
 
@@ -37,7 +37,7 @@
 		<param name="allow_diagonals" value="true" type="bool"/>
 		<param name="obstacle_threshold" value="50" type="int"/>
 		<!-- Occupancy grid input -->
-		<remap from="grid" to="/grid/real"/>
+		<remap from="grid" to="/grid"/>
 
 
 	</node>
